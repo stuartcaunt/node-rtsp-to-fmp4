@@ -1,0 +1,15 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": "8083"
+  },
+  "logging": {
+    "level": "debug"
+  },
+  "streams": {
+    "RTSP Dummy Stream": {
+      "uuid": "a93f3a74-1ddd-4768-a078-d64aa2bcbdf8",
+      "url": "rtsp://localhost:8554/live.stream"
+    }
+  }
+}
