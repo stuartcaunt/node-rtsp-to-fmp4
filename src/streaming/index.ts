@@ -1,2 +1,5 @@
 export * from './stream-relay'
 export * from './stream-connection'
+export * from './rtsp-stream-manager'
+export * from './rtsp-worker'
+export * from './rtsp-stream-client'

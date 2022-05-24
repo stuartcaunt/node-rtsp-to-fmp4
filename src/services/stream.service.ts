@@ -1,7 +1,7 @@
 import { singleton } from "tsyringe";
 import { APPLICATION_CONFIG } from "../application-config";
 import { StreamInfo } from "../models";
-import { StreamConnection } from "../streaming";
+import { RTSPStreamManager, StreamConnection } from "../streaming";
 import { logger } from "../utils";
 
 @singleton()
@@ -9,7 +9,7 @@ export class StreamService {
     private _streamInfos: StreamInfo[] = [];
     private _streamConnections: StreamConnection[] = [];
 
-    constructor() {
+    constructor(private _rtspStreamManager: RTSPStreamManager) {
         const streamConfigs = APPLICATION_CONFIG().streams;
 
         for (const [name, config] of Object.entries(streamConfigs)) {
@@ -51,6 +51,12 @@ export class StreamService {
         }
         const streamRelay = streamConnection.createStreamRelay(connectionURL);
         if (streamRelay) {
+            // Get the RTSP Stream Worker
+            const worker = this._rtspStreamManager.connectToStream(streamInfo);
+
+            // Start the relay
+            streamRelay.start(worker);
+
             logger.info(`Conection URL ${connectionURL} added to stream ${streamId}`);
             return streamRelay.id;
 
@@ -68,8 +74,13 @@ export class StreamService {
         
         const streamConnection = this._getStreamConnection(streamId);
         if (streamConnection) {
-            const removed = streamConnection.removeStreamRelay(connectionURL);
-            if (removed) {
+            const streamRelay = streamConnection.getStreamRelay(connectionURL);
+            if (streamRelay) {
+                // Stop relaying data
+                streamRelay.stop();
+
+                // Remove the relay
+                streamConnection.removeStreamRelay(streamRelay);
                 logger.info(`Conection URL ${connectionURL} disconnected from stream ${streamId}`);
 
                 return true;
