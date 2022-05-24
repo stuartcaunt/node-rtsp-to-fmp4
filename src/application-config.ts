@@ -1,5 +1,5 @@
 export interface StreamConfig {
-  uuid: string;
+  id: string;
   url: string;
 }
 

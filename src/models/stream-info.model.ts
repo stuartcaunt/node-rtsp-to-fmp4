@@ -1,14 +1,14 @@
 export class StreamInfo {
-    private _uuid: string;
+    private _id: string;
     private _name: string;
     private _url: string;
 
-    get uuid(): string {
-        return this._uuid;
+    get id(): string {
+        return this._id;
     }
 
-    set uuid(value: string) {
-        this._uuid = value;
+    set id(value: string) {
+        this._id = value;
     }
 
     get name(): string {

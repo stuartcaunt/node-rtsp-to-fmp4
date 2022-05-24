@@ -23,6 +23,7 @@ export class Application {
 
       app.get('/api/streams', (req, res) => container.resolve(StreamController).getStreams(req, res));
       app.post('/api/streams/:streamId/connect', (req, res) => container.resolve(StreamController).connect(req, res));
+      app.post('/api/streams/:streamId/disconnect', (req, res) => container.resolve(StreamController).disconnect(req, res));
 
       const port = APPLICATION_CONFIG().server.port;
       const host = APPLICATION_CONFIG().server.host;

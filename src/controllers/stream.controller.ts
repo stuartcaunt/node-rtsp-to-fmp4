@@ -15,7 +15,7 @@ export class StreamController {
 
     getStreams(req: Request, res: Response) {
         try {
-            const streams = this._service.getStreams();
+            const streams = this._service.getAllStreamInfos();
             res.status(200).json(streams);
 
         } catch (error) {
@@ -30,18 +30,24 @@ export class StreamController {
         }
     }
 
-    async connect(req: Request, res: Response) {
+    connect(req: Request, res: Response) {
         const streamId = req.params.streamId;
         const streamConnectionRequest = req.body as StreamConnectionRequest;
 
         if (!streamConnectionRequest || !streamConnectionRequest.url) {
-            res.status(400).send('Steam connection request body does not have a client URL')
+            res.status(400).send('Stream connection request body does not have a client URL')
             return;
         }
 
         try {
-            const connection = await this._service.connect(streamId, streamConnectionRequest.url);
-            res.status(200).json(connection);
+            const relayId = this._service.connect(streamId, streamConnectionRequest.url);
+            if (relayId) {
+                res.status(201).send(relayId);
+            
+            } else {
+                const relayId = this._service.getRelayId(streamId, streamConnectionRequest.url);
+                res.status(200).send(relayId);
+            }
 
         } catch (error) {
             if (error instanceof Error) {
@@ -55,18 +61,18 @@ export class StreamController {
         }
     }
 
-    async disconnect(req: Request, res: Response) {
+    disconnect(req: Request, res: Response) {
         const streamId = req.params.streamId;
         const streamConnectionRequest = req.body as StreamConnectionRequest;
 
         if (!streamConnectionRequest || !streamConnectionRequest.url) {
-            res.status(400).send('Steam disconnection request body does not have a client URL')
+            res.status(400).send('Stream disconnection request body does not have a client URL')
             return;
         }
 
         try {
-            const connection = await this._service.disconnect(streamId, streamConnectionRequest.url);
-            res.status(200).json(connection);
+            const removed = this._service.disconnect(streamId, streamConnectionRequest.url);
+            res.status(200).send(removed);
 
         } catch (error) {
             if (error instanceof Error) {
