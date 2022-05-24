@@ -52,16 +52,18 @@ export class StreamRelay implements RTSPStreamClient {
     }
 
     onHeader(header: Buffer) {
-        this._axiosClient.post(``, header)
-            .catch (error => {
-                logger.error(`Failed to post header to connection URL ${this._baseURL}: ${error.message}`);
+        logger.debug(`Got fMP4 header from ffmpeg for stream ${this._streamInfo.name}:`);
+        logger.debug(header.toString('hex'));
 
-                this.stop();
-            });
+        this._sendData(header, '');
     }
 
-    async onData(header: Buffer) {
-        this._axiosClient.post(``, header)
+    async onData(data: Buffer) {
+        this._sendData(data, '');
+    }
+
+    private _sendData(data: Buffer, path: string) {
+        this._axiosClient.post(path, data)
             .catch (error => {
                 logger.error(`Failed to post data to connection URL ${this._baseURL}: ${error.message}`);
 

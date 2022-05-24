@@ -57,11 +57,11 @@ export class StreamService {
             // Start the relay
             streamRelay.start(worker);
 
-            logger.info(`Conection URL ${connectionURL} added to stream ${streamId}`);
+            logger.info(`Conection URL ${connectionURL} added to stream '${streamInfo.name}'`);
             return streamRelay.id;
 
         } else {
-            logger.info(`Conection URL ${connectionURL} is already connected to stream ${streamId}`);
+            logger.info(`Conection URL ${connectionURL} is already connected to stream '${streamInfo.name}'`);
         }
         return null;
     }
@@ -81,7 +81,7 @@ export class StreamService {
 
                 // Remove the relay
                 streamConnection.removeStreamRelay(streamRelay);
-                logger.info(`Conection URL ${connectionURL} disconnected from stream ${streamId}`);
+                logger.info(`Conection URL ${connectionURL} disconnected from stream '${streamInfo.name}'`);
 
                 return true;
             }

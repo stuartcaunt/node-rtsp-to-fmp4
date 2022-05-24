@@ -48,16 +48,19 @@ export class RTSPWorker {
             'tcp',
             '-i',
             this._streamInfo.url,
+            '-reset_timestamps',
+            '1',
             '-an',
             '-c:v',
             'copy',
             '-f',
             'mp4',
             '-movflags',
-            'frag_keyframe+empty_moov',
+            '+frag_every_frame+empty_moov+default_base_moof',
             'pipe:1'
         ];
 
+        logger.info(`Spawning ffmpeg for RTSP stream '${this._streamInfo.name}' at ${this._streamInfo.url}`);
         this._process = child.spawn('ffmpeg', params, { detached: false });
 
         this._process.stdout.on('data', (data) => {
@@ -70,7 +73,6 @@ export class RTSPWorker {
             } else {
                 this._clients.forEach(client => client.onData(data));
             }
-            // logger.info(`[stdout] Received ${data.length} data from ffmpeg on stdout`);
         });
 
         this._process.stderr.on('data', (data) => {	
@@ -79,15 +81,16 @@ export class RTSPWorker {
 
         this._process.on('exit', (code, signal) => {
             if (code === 1) {
-              logger.info('RTSP stream exited with error');	  
+                logger.info(`ffmpeg for RTSP stream '${this._streamInfo.name}' exited with error`);	  
             } else {
-                logger.info('RTSP stream exited')
+                logger.info(`ffmpeg for RTSP stream '${this._streamInfo.name}' exited`);	  
             }
         });
     }
 
     stop() {
         if (this._process) {
+            logger.info(`Killing ffmpeg for RTSP stream ${this._streamInfo.name}`);
             this._process.kill(9);
             this._process = null;
             this._header = null;
