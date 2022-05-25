@@ -50,6 +50,8 @@ export class StreamController {
             }
 
         } catch (error) {
+            this._service.disconnect(streamId, streamConnectionRequest.url);
+
             if (error instanceof Error) {
                 logger.error(`An error occurred connecting to stream ${streamId}: ${error.message}`);
                 res.status(500).send(`Server error: ${error.message}`);

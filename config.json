@@ -8,7 +8,7 @@
   },
   "streams": {
     "RTSP Dummy Stream": {
-      "id": "a93f3a74-1ddd-4768-a078-d64aa2bcbdf8",
+      "id": "Stream1",
       "url": "rtsp://localhost:8554/live.stream"
     }
   }

@@ -24,7 +24,7 @@ export class StreamRelay implements RTSPStreamClient {
         return this._streamInfo;
     }
 
-    constructor(private _connectionURL: string, private _streamInfo: StreamInfo) {
+    constructor(private _connectionURL: string, private _streamInfo: StreamInfo, private _onStopped: (streamRelay: StreamRelay) => void) {
         this._id = crypo.randomUUID();
 
         this._baseURL = `${this._connectionURL}/${this.streamInfo.id}`;
@@ -49,21 +49,22 @@ export class StreamRelay implements RTSPStreamClient {
 
             this._rtspWorker = null;
         }
+        this._onStopped(this);
     }
 
-    onHeader(header: Buffer) {
+    async onHeader(header: Buffer): Promise<void> {
         logger.debug(`Got fMP4 header from ffmpeg for stream ${this._streamInfo.name}:`);
-        logger.debug(header.toString('hex'));
+        logger.debug(header.toString('hex', 0, Math.min(header.length, 32)));
 
-        this._sendData(header, '');
+        await this._sendData(header, '');
     }
 
-    async onData(data: Buffer) {
-        this._sendData(data, '');
+    async onData(data: Buffer): Promise<void> {
+        await this._sendData(data, '');
     }
 
-    private _sendData(data: Buffer, path: string) {
-        this._axiosClient.post(path, data)
+    private async _sendData(data: Buffer, path: string): Promise<void> {
+        await this._axiosClient.post(path, data)
             .catch (error => {
                 logger.error(`Failed to post data to connection URL ${this._baseURL}: ${error.message}`);
 

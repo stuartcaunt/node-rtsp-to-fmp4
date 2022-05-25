@@ -21,7 +21,7 @@ export class StreamConnection {
 
     public createStreamRelay(connectionURL: string): StreamRelay {
         if (!this.hasConnectionURL(connectionURL)) {
-            const streamRelay = new StreamRelay(connectionURL, this._streamInfo);
+            const streamRelay = new StreamRelay(connectionURL, this._streamInfo, this._onRelayStopped.bind(this));
 
             this._streamRelays.push(streamRelay);
             return streamRelay;
@@ -31,5 +31,9 @@ export class StreamConnection {
 
     public removeStreamRelay(streamRelay: StreamRelay) {
         this._streamRelays = this._streamRelays.filter(aStreamRelay => aStreamRelay.connectionURL !== streamRelay.connectionURL);
+    }
+
+    private _onRelayStopped(streamRelay: StreamRelay) {
+        this.removeStreamRelay(streamRelay);
     }
 }
