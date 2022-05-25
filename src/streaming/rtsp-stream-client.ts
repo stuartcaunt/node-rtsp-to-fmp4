@@ -1,4 +1,5 @@
 export interface RTSPStreamClient {
-    onHeader(header: Buffer): Promise<void>;
-    onData(header: Buffer): Promise<void>;
+    onMimeType(mimeType: string): Promise<void>;
+    onInitialisation(initialisation: Buffer): Promise<void>;
+    onSegment(segment: Buffer): Promise<void>;
 }

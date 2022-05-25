@@ -29,16 +29,16 @@ export class RTSPWorker {
         }
 
         if (this._mp4Frag.initialization) {
-            client.onHeader(this._mp4Frag.mime).then(() => {
-                client.onHeader(this._mp4Frag.initialization);
+            client.onMimeType(this._mp4Frag.mime).then(() => {
+                client.onInitialisation(this._mp4Frag.initialization);
             });
         
         } else {
             this._mp4Frag.once('initialized', () => {
-                client.onHeader(this._mp4Frag.mime).then(() => {
-                    client.onHeader(this._mp4Frag.initialization);
+                client.onMimeType(this._mp4Frag.mime).then(() => {
+                    client.onInitialisation(this._mp4Frag.initialization);
                 });
-            })
+            });
         }
     }
 
@@ -89,7 +89,7 @@ export class RTSPWorker {
         this._ffmpeg.stdio[1].pipe(this._mp4Frag);
 
         this._mp4Frag.on('segment', data => {
-            this._clients.forEach(client => client.onData(data.segment));
+            this._clients.forEach(client => client.onSegment(data.segment));
         })
     }
 

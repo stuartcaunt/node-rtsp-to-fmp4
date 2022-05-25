@@ -11,6 +11,7 @@ export class StreamRelay implements RTSPStreamClient {
     private _rtspWorker: RTSPWorker;
     private _axiosClient: AxiosInstance;
     private _baseURL: string;
+    private _initialised = false;
 
     get id(): string {
         return this._id;
@@ -52,18 +53,27 @@ export class StreamRelay implements RTSPStreamClient {
         this._onStopped(this);
     }
 
-    async onHeader(header: Buffer): Promise<void> {
-        logger.debug(`Got fMP4 header from ffmpeg for stream ${this._streamInfo.name}:`);
-        logger.debug(header.toString('hex', 0, Math.min(header.length, 32)));
+    async onMimeType(mimeType: string): Promise<void> {
+        logger.debug(`Got fMP4 mimetype from ffmpeg for stream ${this._streamInfo.name}: ${mimeType}`);
 
-        await this._sendData(header, '');
+        await this._sendData(mimeType, '');
     }
 
-    async onData(data: Buffer): Promise<void> {
-        await this._sendData(data, '');
+    async onInitialisation(initialisation: Buffer): Promise<void> {
+        logger.debug(`Got fMP4 initialisation from ffmpeg for stream ${this._streamInfo.name}:`);
+
+        await this._sendData(initialisation, '');
+
+        this._initialised = true;
     }
 
-    private async _sendData(data: Buffer, path: string): Promise<void> {
+    async onSegment(segment: Buffer): Promise<void> {
+        if (this._initialised) {
+            await this._sendData(segment, '');
+        }
+    }
+
+    private async _sendData(data: Buffer | string, path: string): Promise<void> {
         await this._axiosClient.post(path, data)
             .catch (error => {
                 logger.error(`Failed to post data to connection URL ${this._baseURL}: ${error.message}`);
