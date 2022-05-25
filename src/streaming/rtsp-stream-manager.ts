@@ -16,7 +16,7 @@ export class RTSPStreamManager {
         let worker = this._getWorker(streamInfo);
         if (worker == null) {
             worker = new RTSPWorker(streamInfo);
-            logger.info(`Created new RTSP Worker for stream ${streamInfo.id}`);
+            logger.info(`Created new RTSP Worker for stream '${streamInfo.name}'`);
             this._rtspWorkers.push(worker);
         }
 

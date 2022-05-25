@@ -1,7 +1,8 @@
 import { singleton } from "tsyringe";
+import { stream } from "winston";
 import { APPLICATION_CONFIG } from "../application-config";
 import { StreamInfo } from "../models";
-import { RTSPStreamManager, StreamConnection } from "../streaming";
+import { RTSPStreamManager, StreamConnection, StreamRelay } from "../streaming";
 import { logger } from "../utils";
 
 @singleton()
@@ -49,15 +50,15 @@ export class StreamService {
             streamConnection = new StreamConnection(streamInfo);
             this._streamConnections.push(streamConnection);
         }
-        const streamRelay = streamConnection.createStreamRelay(connectionURL);
+        const streamRelay = streamConnection.createStreamRelay(connectionURL, this._onStreamRelayError.bind(this));
         if (streamRelay) {
+            logger.info(`Conection URL ${connectionURL} added to stream '${streamInfo.name}'`);
+
             // Get the RTSP Stream Worker
             const worker = this._rtspStreamManager.connectToStream(streamInfo);
 
             // Start the relay
             streamRelay.start(worker);
-
-            logger.info(`Conection URL ${connectionURL} added to stream '${streamInfo.name}'`);
             return streamRelay.id;
 
         } else {
@@ -76,12 +77,15 @@ export class StreamService {
         if (streamConnection) {
             const streamRelay = streamConnection.getStreamRelay(connectionURL);
             if (streamRelay) {
+                logger.info(`Conection URL ${connectionURL} disconnected from stream '${streamInfo.name}'`);
+
                 // Stop relaying data
-                streamRelay.stop();
+                if (streamRelay.running) {
+                    streamRelay.stop();
+                }
 
                 // Remove the relay
                 streamConnection.removeStreamRelay(streamRelay);
-                logger.info(`Conection URL ${connectionURL} disconnected from stream '${streamInfo.name}'`);
 
                 return true;
             }
@@ -92,6 +96,11 @@ export class StreamService {
 
     private _getStreamConnection(streamId: string): StreamConnection {
         return this._streamConnections.find((streamConnection: StreamConnection) => streamConnection.streamId === streamId);
+    }
+
+    private _onStreamRelayError(streamRelay: StreamRelay, error: string) {
+        logger.info(`Removing URL ${streamRelay.connectionURL} from stream '${streamRelay.streamInfo.name}' due to errors: ${error}`);
+        this.disconnect(streamRelay.streamInfo.id, streamRelay.connectionURL);
     }
 
 

@@ -25,7 +25,11 @@ export class StreamRelay implements RTSPStreamClient {
         return this._streamInfo;
     }
 
-    constructor(private _connectionURL: string, private _streamInfo: StreamInfo, private _onStopped: (streamRelay: StreamRelay) => void) {
+    get running(): boolean {
+        return this._rtspWorker != null;
+    }
+
+    constructor(private _connectionURL: string, private _streamInfo: StreamInfo, private _onError: (streamRelay: StreamRelay, error: string) => void) {
         this._id = crypo.randomUUID();
 
         this._baseURL = `${this._connectionURL}/${this.streamInfo.id}`;
@@ -50,17 +54,16 @@ export class StreamRelay implements RTSPStreamClient {
 
             this._rtspWorker = null;
         }
-        this._onStopped(this);
     }
 
     async onMimeType(mimeType: string): Promise<void> {
-        logger.debug(`Got fMP4 mimetype from ffmpeg for stream ${this._streamInfo.name}: ${mimeType}`);
+        logger.debug(`Got mimetype '${mimeType}' from ffmpeg for stream '${this._streamInfo.name}'`);
 
         await this._sendData(mimeType, '');
     }
 
     async onInitialisation(initialisation: Buffer): Promise<void> {
-        logger.debug(`Got fMP4 initialisation from ffmpeg for stream ${this._streamInfo.name}:`);
+        logger.debug(`Got initialisation of length ${initialisation.length} from ffmpeg for stream '${this._streamInfo.name}':`);
 
         await this._sendData(initialisation, '');
 
@@ -69,6 +72,7 @@ export class StreamRelay implements RTSPStreamClient {
 
     async onSegment(segment: Buffer): Promise<void> {
         if (this._initialised) {
+            logger.debug(`Got segment of length ${segment.length} from ffmpeg for stream '${this._streamInfo.name}':`);
             await this._sendData(segment, '');
         }
     }
@@ -76,9 +80,9 @@ export class StreamRelay implements RTSPStreamClient {
     private async _sendData(data: Buffer | string, path: string): Promise<void> {
         await this._axiosClient.post(path, data)
             .catch (error => {
-                logger.error(`Failed to post data to connection URL ${this._baseURL}: ${error.message}`);
+                logger.error(`Stream ${this._streamInfo.name} failed to post data to connection URL ${this._baseURL}: ${error.message}`);
 
-                this.stop();
+                this._onError(this, 'Failed to post data');
             });
     }
 
