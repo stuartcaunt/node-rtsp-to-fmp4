@@ -58,14 +58,13 @@ export class StreamRelay implements RTSPStreamClient {
 
     async onMimeType(mimeType: string): Promise<void> {
         logger.debug(`Got mimetype '${mimeType}' from ffmpeg for stream '${this._streamInfo.name}'`);
-
-        await this._sendData(mimeType, '');
+        await this._sendData(mimeType, '/mime');
     }
 
     async onInitialisation(initialisation: Buffer): Promise<void> {
         logger.debug(`Got initialisation of length ${initialisation.length} from ffmpeg for stream '${this._streamInfo.name}':`);
 
-        await this._sendData(initialisation, '');
+        await this._sendData(initialisation, '/initialization');
 
         this._initialised = true;
     }
