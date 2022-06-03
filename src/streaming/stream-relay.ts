@@ -37,6 +37,7 @@ export class StreamRelay implements RTSPStreamClient {
             baseURL: this._baseURL,
         });
     }
+
     start(rtspWorker: RTSPWorker) {
         if (!this._rtspWorker) {
             rtspWorker.addClient(this);
@@ -73,6 +74,12 @@ export class StreamRelay implements RTSPStreamClient {
         }
     }
 
+    onExit(code: number): void {
+        if (code == 1) {;
+            this._onError(this, `ffmpeg crashed for stream '${this._streamInfo.name}'`);
+        }
+    }
+
     private async _sendData(data: Buffer | string, path: string, contentType: string): Promise<void> {
         await this._axiosClient.post(path, data, {
                 headers: {
@@ -85,5 +92,6 @@ export class StreamRelay implements RTSPStreamClient {
                 this._onError(this, 'Failed to post data');
             });
     }
+
 
 }

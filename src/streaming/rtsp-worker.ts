@@ -48,7 +48,7 @@ export class RTSPWorker {
 
     removeClient(client: RTSPStreamClient) {
         this._clients = this._clients.filter(aClient => aClient != client);
-        if (this._clients.length == 0) {
+        if (this._clients.length == 0 && this._ffmpeg) {
             logger.info(`No more clients listening to RTSP stream '${this._streamInfo.name}': stopping ffmpeg`);
             this.stop();
         }
@@ -82,12 +82,18 @@ export class RTSPWorker {
 
         this._ffmpeg.on('exit', (code, signal) => {
             if (code === 1) {
-                logger.info(`ffmpeg for RTSP stream '${this._streamInfo.name}' exited with error`);	  
+                logger.error(`ffmpeg for RTSP stream '${this._streamInfo.name}' exited with error`);	  
 
                 // TODO do we respawn ffmpeg or report the crash higher up?
             } else {
-                logger.info(`ffmpeg for RTSP stream '${this._streamInfo.name}' exited`);	  
+                logger.info(`ffmpeg for RTSP stream '${this._streamInfo.name}' exited`);
             }
+
+            this._ffmpeg = null;
+            this.stop();
+
+            // Notify clients of exit
+            this._clients.forEach(client => client.onExit(code));
         });
 
         // Create mp4Frag
