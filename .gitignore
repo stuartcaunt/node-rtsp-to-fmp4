@@ -67,3 +67,5 @@ typings/
 DEVELOPING.md
 
 data
+
+demo-client/dist

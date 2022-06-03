@@ -18,6 +18,21 @@
             "preLaunchTask": "tsc: build - tsconfig.json",
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen",
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch demo client",
+            "cwd": "${workspaceFolder}/demo-client",
+            "program": "${workspaceFolder}/demo-client/index.js",
+            "env": {
+            },
+            "outFiles": [
+              "${workspaceFolder}/demo-client/dist/**/*.js"
+            ],
+            "preLaunchTask": "Build demo-client",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
         }
     ]
 }
