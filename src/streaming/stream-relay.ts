@@ -35,9 +35,6 @@ export class StreamRelay implements RTSPStreamClient {
         this._baseURL = `${this._connectionURL}/${this.streamInfo.id}`;
         this._axiosClient = Axios.create({
             baseURL: this._baseURL,
-            headers: {
-                'Content-Type': 'application/octet-stream'
-            },
         });
     }
     start(rtspWorker: RTSPWorker) {
@@ -58,13 +55,13 @@ export class StreamRelay implements RTSPStreamClient {
 
     async onMimeType(mimeType: string): Promise<void> {
         logger.debug(`Got mimetype '${mimeType}' from ffmpeg for stream '${this._streamInfo.name}'`);
-        await this._sendData(mimeType, '/mime');
+        await this._sendData(mimeType, '/mime', 'text/plain');
     }
 
     async onInitialisation(initialisation: Buffer): Promise<void> {
         logger.debug(`Got initialisation of length ${initialisation.length} from ffmpeg for stream '${this._streamInfo.name}':`);
 
-        await this._sendData(initialisation, '/initialization');
+        await this._sendData(initialisation, '/initialization', 'application/octet-stream');
 
         this._initialised = true;
     }
@@ -72,12 +69,16 @@ export class StreamRelay implements RTSPStreamClient {
     async onSegment(segment: Buffer): Promise<void> {
         if (this._initialised) {
             logger.debug(`Got segment of length ${segment.length} from ffmpeg for stream '${this._streamInfo.name}':`);
-            await this._sendData(segment, '');
+            await this._sendData(segment, '/segment', 'application/octet-stream');
         }
     }
 
-    private async _sendData(data: Buffer | string, path: string): Promise<void> {
-        await this._axiosClient.post(path, data)
+    private async _sendData(data: Buffer | string, path: string, contentType: string): Promise<void> {
+        await this._axiosClient.post(path, data, {
+                headers: {
+                    'Content-Type': contentType
+                }, 
+            })
             .catch (error => {
                 logger.error(`Stream ${this._streamInfo.name} failed to post data to connection URL ${this._baseURL}: ${error.message}`);
 
