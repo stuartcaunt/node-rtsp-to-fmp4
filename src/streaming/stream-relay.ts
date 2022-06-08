@@ -17,9 +17,9 @@ export class StreamRelay implements RTSPStreamClient {
 
     addClient(clientId: string):void {
         if (!this.hasClient(clientId)) {
-            logger.info(`Client '${clientId}' added to stream '${this._streamInfo.name}'`);
-
             this._clients.push(clientId);
+
+            logger.info(`Client '${clientId}' added to stream '${this._streamInfo.name}'. ${this._clients.length} client(s) are now attached.`);
 
             if (this._clients.length == 1) {
                 this._rtspWorker.start(this);
@@ -31,9 +31,9 @@ export class StreamRelay implements RTSPStreamClient {
 
     removeClient(clientId: string):void {
         if (this.hasClient(clientId)) {
-            logger.info(`Client '${clientId}' removed from stream '${this._streamInfo.name}'`);
-
             this._clients = this._clients.filter((id: string) => id !== clientId);
+
+            logger.info(`Client '${clientId}' removed from stream '${this._streamInfo.name}'. ${this._clients.length} client(s) are now attached.`);
 
             if (this._clients.length == 0) {
                 this._rtspWorker.stop();
