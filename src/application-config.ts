@@ -15,6 +15,10 @@ export class ApplicationConfig {
     timezone: string;
   };
 
+  publisher: {
+    port: number;
+  }
+
   streams: {
     [key: string]: StreamConfig;
   }

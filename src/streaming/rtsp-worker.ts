@@ -3,11 +3,10 @@ import { spawn, ChildProcessWithoutNullStreams} from 'child_process';
 import { logger } from "../utils";
 import { RTSPStreamClient } from "./rtsp-stream-client";
 import MP4Frag from 'mp4frag';
-import { PassThrough, Writable } from 'stream';
 
 export class RTSPWorker {
 
-    private _clients: RTSPStreamClient[] = [];
+    private _client: RTSPStreamClient;
     private _ffmpeg: ChildProcessWithoutNullStreams;
     private _mp4Frag: MP4Frag;
 
@@ -18,46 +17,13 @@ export class RTSPWorker {
     constructor(private _streamInfo: StreamInfo) {
     }
 
-    hasClients(): boolean {
-        return this._clients.length > 0;
-    }
-
-    addClient(client: RTSPStreamClient) {
-        this._clients.push(client);
-        if (this._clients.length == 1) {
-            logger.info(`First client listening to RTSP stream '${this._streamInfo.name}': starting ffmpeg`);
-            this.start();
-        }
-
-        if (this._mp4Frag.initialization) {
-            client.onMimeType(this._mp4Frag.mime).then(() => {
-                client.onInitialisation(this._mp4Frag.initialization);
-            });
-        
-        } else {
-            this._mp4Frag.once('initialized', () => {
-                client.onMimeType(this._mp4Frag.mime).then(() => {
-                    // Check we're still running
-                    if (this._mp4Frag) {
-                        client.onInitialisation(this._mp4Frag.initialization);
-                    }
-                });
-            });
-        }
-    }
-
-    removeClient(client: RTSPStreamClient) {
-        this._clients = this._clients.filter(aClient => aClient != client);
-        if (this._clients.length == 0 && this._ffmpeg) {
-            logger.info(`No more clients listening to RTSP stream '${this._streamInfo.name}': stopping ffmpeg`);
-            this.stop();
-        }
-    }
-
-    start() {
+    start(client: RTSPStreamClient) {
         if (this._ffmpeg) {
             return;
         }
+
+        this._client = client;
+        logger.info(`Starting ffmpeg for stream '${this._streamInfo.name}'`);
 
         const params = [
             '-re',  
@@ -80,7 +46,7 @@ export class RTSPWorker {
         logger.info(`Spawning ffmpeg for RTSP stream '${this._streamInfo.name}' at ${this._streamInfo.url}`);
         this._ffmpeg = spawn('ffmpeg', params,  { stdio: ['ignore', 'pipe', 'ignore'] });
 
-        this._ffmpeg.on('exit', (code, signal) => {
+        this._ffmpeg.on('exit', (code) => {
             if (code === 1) {
                 logger.error(`ffmpeg for RTSP stream '${this._streamInfo.name}' exited with error`);	  
 
@@ -93,7 +59,7 @@ export class RTSPWorker {
             this.stop();
 
             // Notify clients of exit
-            this._clients.forEach(client => client.onExit(code));
+            this._client.onExit(code);
         });
 
         // Create mp4Frag
@@ -101,7 +67,7 @@ export class RTSPWorker {
         this._ffmpeg.stdio[1].pipe(this._mp4Frag);
 
         this._mp4Frag.on('segment', data => {
-            this._clients.forEach(client => client.onSegment(data.segment));
+            this._client.onSegment(data.segment);
         })
     }
 
@@ -115,5 +81,53 @@ export class RTSPWorker {
             this._ffmpeg.kill(9);
             this._ffmpeg = null;
         }
+    }
+
+    async getMime(): Promise<string> {
+        return new Promise((resolve, reject) => {
+            if (!this._mp4Frag) {
+                reject(`ffmpeg process for RTSP stream '${this._streamInfo.name}' does not exist`)
+            }
+
+            if (this._mp4Frag.mime) {
+                resolve(this._mp4Frag.mime);
+            
+            } else {
+                const exitListener = () => {
+                    reject(`ffmpeg process for RTSP stream '${this._streamInfo.name}' exited`)
+                };
+                this._ffmpeg.on('exit', exitListener);
+
+                this._mp4Frag.once('initialized', () => {
+                    this._ffmpeg.removeListener('exit', exitListener);
+                    resolve(this._mp4Frag.mime);
+                });
+            }
+    
+        });
+    }
+
+    async getInitialization(): Promise<Buffer> {
+        return new Promise((resolve, reject) => {
+            if (!this._mp4Frag) {
+                reject(`ffmpeg process for RTSP stream '${this._streamInfo.name}' does not exist`)
+            }
+
+            if (this._mp4Frag.initialization) {
+                resolve(this._mp4Frag.initialization);
+            
+            } else {
+                const exitListener = () => {
+                    reject(`ffmpeg process for RTSP stream '${this._streamInfo.name}' exited`)
+                };
+                this._ffmpeg.on('exit', exitListener);
+
+                this._mp4Frag.once('initialized', () => {
+                    this._ffmpeg.removeListener('exit', exitListener);
+                    resolve(this._mp4Frag.initialization);
+                });
+            }
+    
+        });
     }
 }

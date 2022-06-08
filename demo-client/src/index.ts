@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
-import { logger } from './utils';
+import { errMsg, logger } from './utils';
 import { Application } from './application';
 
 export async function main() {
@@ -17,7 +17,13 @@ export async function main() {
   });
 
   // Start the application
-  application.start();
+  try {
+    await application.start();
+  
+  } catch (error) {
+    logger.error(`Application threw an error: ${errMsg(error)}`);
+    throw error;
+  }
 
   return application;
 }

@@ -5,12 +5,15 @@ import * as http from 'http';
 import { APPLICATION_CONFIG } from './application-config';
 import { container } from "tsyringe";
 import { StreamController } from "./controllers";
+import { StreamPublisher } from "./streaming";
 
 export class Application {
 
   private _server: http.Server;
+  private _streamPublisher: StreamPublisher = new StreamPublisher();
 
   constructor() {
+    this._init();
   }
 
   async start(): Promise<null> {
@@ -20,6 +23,8 @@ export class Application {
 
       const app = express();
       app.use(express.json());
+
+      await this._streamPublisher.init();
 
       app.get('/api/streams', (req, res) => container.resolve(StreamController).getStreams(req, res));
       app.post('/api/streams/:streamId/connect', (req, res) => container.resolve(StreamController).connect(req, res));
@@ -44,7 +49,17 @@ export class Application {
       this._server = null;
     }
 
+    if (this._streamPublisher) {
+      this._streamPublisher.close();
+    }
+
     return null;
+  }
+
+  private _init() {
+    container.register<StreamPublisher>(StreamPublisher, {
+      useValue: this._streamPublisher
+    });
   }
 }
 

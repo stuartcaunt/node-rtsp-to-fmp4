@@ -1,16 +1,15 @@
 import { singleton } from "tsyringe";
-import { stream } from "winston";
 import { APPLICATION_CONFIG } from "../application-config";
-import { StreamInfo } from "../models";
-import { RTSPStreamManager, StreamConnection, StreamRelay } from "../streaming";
+import { StreamInfo, StreamInit } from "../models";
+import { RTSPStreamManager, StreamPublisher, StreamRelay } from "../streaming";
 import { logger } from "../utils";
 
 @singleton()
 export class StreamService {
     private _streamInfos: StreamInfo[] = [];
-    private _streamConnections: StreamConnection[] = [];
+    private _streamRelays: StreamRelay[] = [];
 
-    constructor(private _rtspStreamManager: RTSPStreamManager) {
+    constructor(private _rtspStreamManager: RTSPStreamManager, private _streamPublisher: StreamPublisher) {
         const streamConfigs = APPLICATION_CONFIG().streams;
 
         for (const [name, config] of Object.entries(streamConfigs)) {
@@ -27,80 +26,71 @@ export class StreamService {
         return this._streamInfos.find(streamInfo => streamInfo.id === streamId);
     }
 
-    getRelayId(streamId: string, connectionURL: string): string {
-        const streamConnection = this._getStreamConnection(streamId);
-        if (streamConnection) {
-            const relay = streamConnection.getStreamRelay(connectionURL);
-            if (relay) {
-                return relay.id;
-            }
-        }
-
-        return null;
-    }
-
-    connect(streamId: string, connectionURL: string): string {
+    async connect(streamId: string, clientId: string): Promise<StreamInit> {
         const streamInfo = this.getStreamInfo(streamId);
         if (!streamInfo) {
             throw new Error(`Could not find stream details for stream with id ${streamId}`);
         }
 
-        let streamConnection = this._getStreamConnection(streamId);
-        if (!streamConnection) {
-            streamConnection = new StreamConnection(streamInfo);
-            this._streamConnections.push(streamConnection);
-        }
-        const streamRelay = streamConnection.createStreamRelay(connectionURL, this._onStreamRelayError.bind(this));
-        if (streamRelay) {
-            logger.info(`Conection URL ${connectionURL} added to stream '${streamInfo.name}'`);
-
+        let streamRelay = this._getStreamRelay(streamId);
+        if (!streamRelay) {
+            logger.info(`Creating new Stream Relay for stream '${streamInfo.name}'`);
             // Get the RTSP Stream Worker
             const worker = this._rtspStreamManager.connectToStream(streamInfo);
 
-            // Start the relay
-            streamRelay.start(worker);
-            return streamRelay.id;
+            streamRelay = new StreamRelay(streamInfo, worker, this._streamPublisher, this._onStreamRelayError.bind(this));
 
-        } else {
-            logger.info(`Conection URL ${connectionURL} is already connected to stream '${streamInfo.name}'`);
+            this._streamRelays.push(streamRelay);
         }
-        return null;
+
+        // Add the client to the stream relay (if first one it'll start ffmpeg)
+        streamRelay.addClient(clientId);
+
+        // Get the init data
+        try {
+            const initData = await streamRelay.getInitData();
+            return initData;
+
+        } catch (error) {
+            throw error;
+        }        
     }
 
-    disconnect(streamId: string, connectionURL: string): boolean {
+    disconnect(streamId: string, clientId: string) {
         const streamInfo = this.getStreamInfo(streamId);
         if (!streamInfo) {
             throw new Error(`Could not find stream details for stream with id ${streamId}`);
         }
         
-        const streamConnection = this._getStreamConnection(streamId);
-        if (streamConnection) {
-            const streamRelay = streamConnection.getStreamRelay(connectionURL);
-            if (streamRelay) {
-                logger.info(`Conection URL ${connectionURL} disconnected from stream '${streamInfo.name}'`);
+        const streamRelay = this._getStreamRelay(streamId);
+        if (streamRelay) {
+            streamRelay.removeClient(clientId);
 
-                // Stop relaying data
-                if (streamRelay.running) {
-                    streamRelay.stop();
-                }
-
-                // Remove the relay
-                streamConnection.removeStreamRelay(streamRelay);
-
-                return true;
+            if (!streamRelay.hasClients()) {
+                logger.info(`Removing Stream Relay for stream '${streamInfo.name}'`);
+                this._removeStreamRelay(streamId);
             }
+        } else {
+            logger.debug(`Stream Relay for stream '${streamId}' does not exist`);
         }
-
-        return false;
     }
 
-    private _getStreamConnection(streamId: string): StreamConnection {
-        return this._streamConnections.find((streamConnection: StreamConnection) => streamConnection.streamId === streamId);
+    private _getStreamRelay(streamId: string): StreamRelay {
+        return this._streamRelays.find((streamRelay: StreamRelay) => streamRelay.streamId === streamId);
     }
 
-    private _onStreamRelayError(streamRelay: StreamRelay, error: string) {
-        logger.info(`Removing URL ${streamRelay.connectionURL} from stream '${streamRelay.streamInfo.name}' due to errors: ${error}`);
-        this.disconnect(streamRelay.streamInfo.id, streamRelay.connectionURL);
+    private _removeStreamRelay(streamId: string): void {
+        this._streamRelays = this._streamRelays.filter((streamRelay: StreamRelay) => streamRelay.streamId !== streamId);
+    }
+
+    private _onStreamRelayError(streamInfo: StreamInfo, error: string) {
+        logger.error(`Removing stream '${streamInfo.name}' due to errors: ${error}`);
+
+        const streamRelay = this._getStreamRelay(streamInfo.id);
+        if (streamRelay) {
+            streamRelay.stop();
+            this._removeStreamRelay(streamInfo.id);
+        }
     }
 
 

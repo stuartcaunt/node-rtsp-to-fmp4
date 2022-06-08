@@ -23,11 +23,6 @@ export class RTSPStreamManager {
         return worker;
     }
 
-
-    private _hasWorker(streamInfo: StreamInfo): boolean {
-        return this._getWorker(streamInfo) != null;
-    }
-
     private _getWorker(streamInfo: StreamInfo): RTSPWorker {
         return this._rtspWorkers.find(worker => worker.streamId === streamInfo.id);
     }

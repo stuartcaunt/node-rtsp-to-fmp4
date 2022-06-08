@@ -20,7 +20,7 @@ export const buildLogger = function() {
       new transports.Console({
         format: format.combine(
           format.colorize(),
-          appendTimestamp(APPLICATION_CONFIG().logging.timezone ? {tz: APPLICATION_CONFIG().logging.timezone} : null),
+          appendTimestamp(null),
           format.printf(info => {
             return `${info.timestamp} ${info.level}: ${info.message}`;
           })

@@ -1,10 +1,10 @@
 import {Request, Response} from "express";
 import { singleton } from "tsyringe";
 import { StreamService } from "../services";
-import { logger,  } from "../utils";
+import { errMsg, logger,  } from "../utils";
 
 interface StreamConnectionRequest {
-    url: string;
+    clientId: string;
 }
 
 @singleton()
@@ -30,36 +30,25 @@ export class StreamController {
         }
     }
 
-    connect(req: Request, res: Response) {
+    async connect(req: Request, res: Response): Promise<void> {
         const streamId = req.params.streamId;
         const streamConnectionRequest = req.body as StreamConnectionRequest;
 
-        if (!streamConnectionRequest || !streamConnectionRequest.url) {
-            res.status(400).send('Stream connection request body does not have a client URL')
+        if (!streamConnectionRequest || !streamConnectionRequest.clientId) {
+            res.status(400).send('Stream connection request body does not have a clientId')
             return;
         }
 
         try {
-            const relayId = this._service.connect(streamId, streamConnectionRequest.url);
-            if (relayId) {
-                res.status(201).send(relayId);
-            
-            } else {
-                const relayId = this._service.getRelayId(streamId, streamConnectionRequest.url);
-                res.status(200).send(relayId);
-            }
+            const initData = await this._service.connect(streamId, streamConnectionRequest.clientId);
+            res.status(200).json(initData);
 
         } catch (error) {
-            this._service.disconnect(streamId, streamConnectionRequest.url);
+            logger.error(`An error occurred connecting to stream ${streamId}: ${errMsg(error)}`);
 
-            if (error instanceof Error) {
-                logger.error(`An error occurred connecting to stream ${streamId}: ${error.message}`);
-                res.status(500).send(`Server error: ${error.message}`);
-            
-            } else {
-                logger.error(`An error occurred connecting to stream ${streamId}`);
-                res.status(500).send(`Server error: ${error}`);
-            }
+            this._service.disconnect(streamId, streamConnectionRequest.clientId);
+
+            res.status(500).send(`Server error: ${errMsg(error)}`);
         }
     }
 
@@ -67,24 +56,18 @@ export class StreamController {
         const streamId = req.params.streamId;
         const streamConnectionRequest = req.body as StreamConnectionRequest;
 
-        if (!streamConnectionRequest || !streamConnectionRequest.url) {
-            res.status(400).send('Stream disconnection request body does not have a client URL')
+        if (!streamConnectionRequest || !streamConnectionRequest.clientId) {
+            res.status(400).send('Stream disconnection request body does not have a clientId')
             return;
         }
 
         try {
-            const removed = this._service.disconnect(streamId, streamConnectionRequest.url);
-            res.status(200).send(removed);
+            this._service.disconnect(streamId, streamConnectionRequest.clientId);
+            res.sendStatus(200);
 
         } catch (error) {
-            if (error instanceof Error) {
-                logger.error(`An error occurred disconnecting from stream ${streamId}: ${error.message}`);
-                res.status(500).send(`Server error: ${error.message}`);
-            
-            } else {
-                logger.error(`An error occurred disconnecting from stream ${streamId}`);
-                res.status(500).send(`Server error: ${error}`);
-            }
+            logger.error(`An error occurred disconnecting from stream ${streamId}: ${errMsg(error)}`);
+            res.status(500).send(`Server error: ${errMsg(error)}`);
         }
     }
 }
