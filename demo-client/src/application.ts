@@ -20,28 +20,12 @@ export class Application {
       try {
         this._socket = await this.createSubscriberSocket(APPLICATION_CONFIG().publisher.port);
 
-        for await (const [streamId, data] of this._socket) {
-  
-          // logger.info(`Got segment of ${data.length} bytes sent from stream ${streamId}`);
-  
-          this._statsArray[this._statsIndex] = {
-            time: Date.now(),
-            data: data.length,
-          }
-          if (this._startTime == null) {
-            this._startTime = new Date();
-          }
-          this._statsTotal += data.length;
-          this._statsIndex++;
-          if (this._statsIndex >= this._statsLength) {
-            this._statsIndex = 0;
-          }
-          this._calcDataRate();
-        }
       } catch (error) {
         throw error;
       }
     }
+
+    this._loop();
 
     return null;
   }
@@ -56,6 +40,32 @@ export class Application {
     }
 
     return null;
+  }
+
+  private async _loop(): Promise<void> {
+    try {
+      for await (const [streamId, data] of this._socket) {
+
+        // logger.info(`Got segment of ${data.length} bytes sent from stream ${streamId}`);
+
+        this._statsArray[this._statsIndex] = {
+          time: Date.now(),
+          data: data.length,
+        }
+        if (this._startTime == null) {
+          this._startTime = new Date();
+        }
+        this._statsTotal += data.length;
+        this._statsIndex++;
+        if (this._statsIndex >= this._statsLength) {
+          this._statsIndex = 0;
+        }
+        this._calcDataRate();
+      }
+
+    } catch(error) {
+      logger.error(`Error while receiving data: ${errMsg(error)}`);
+    }
   }
 
   private async createSubscriberSocket(port: number) {
